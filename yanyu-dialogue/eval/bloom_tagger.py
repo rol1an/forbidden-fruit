@@ -29,6 +29,27 @@ BLOOM_LEVELS = [
     "create",
 ]
 
+# 决策 7: 砚石痕迹 callout 消费的砚友动词标签 (避免 jargon leak)
+# 详见 references/inkstone-trace.md §术语转译表
+BLOOM_LABEL_CN = {
+    "remember": "触碰",
+    "understand": "看懂",
+    "apply": "拆解",
+    "analyze": "重构",
+    "evaluate": "评判",
+    "create": "创造",
+}
+
+
+def _attach_chinese_label(result: dict[str, Any]) -> dict[str, Any]:
+    """给输出 dict 补 chinese_label 字段。不破坏 caller 兼容性 (旧 caller 不读这个字段)。"""
+    level = result.get("level")
+    if level in BLOOM_LABEL_CN:
+        result["chinese_label"] = BLOOM_LABEL_CN[level]
+    else:
+        result["chinese_label"] = None
+    return result
+
 SYSTEM_PROMPT = """你是一个 Bloom's taxonomy 自动标注器。给定一个老师/agent 对学生抛出的提问，
 判断它要求学生调动哪一级认知：
 
@@ -60,12 +81,14 @@ def _stub_tag(question: str) -> dict[str, Any]:
     for level, kws in rules:
         for kw in kws:
             if kw in q:
-                return {
+                return _attach_chinese_label({
                     "level": level,
                     "confidence": 0.55,
                     "reason": f"stub keyword: {kw}",
-                }
-    return {"level": "understand", "confidence": 0.30, "reason": "stub fallback"}
+                })
+    return _attach_chinese_label(
+        {"level": "understand", "confidence": 0.30, "reason": "stub fallback"}
+    )
 
 
 def tag_question(question: str, mock: bool = False) -> dict[str, Any]:
@@ -101,7 +124,7 @@ def tag_question(question: str, mock: bool = False) -> dict[str, Any]:
         result = json.loads(text)
         if result.get("level") not in BLOOM_LEVELS:
             raise ValueError(f"bad level: {result.get('level')}")
-        return result
+        return _attach_chinese_label(result)
     except (json.JSONDecodeError, ValueError) as e:
         sys.stderr.write(f"[bloom_tagger] LLM bad JSON ({e}); falling back to stub.\n")
         return _stub_tag(question)
