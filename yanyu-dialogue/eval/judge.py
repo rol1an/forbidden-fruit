@@ -39,6 +39,11 @@ JUDGE_SYSTEM = """你是一位**严厉**的教学评估官，专门审查 Socrat
 设计失败（L1/L2 应覆盖 ≥80% 卡死案例, L3 是兜底）, 扣 probing_depth 分。L2 必须带
 inferred_user_default 字段, 缺字段视为 agent 盲猜反直觉锚点 → 扣分。
 
+**L2 强形状边界（C2 修订）**：L2 形状提示仅允许中文范畴（词性 / 侧 / 关系 / 范畴），
+若出现英文字母数 / 缩写位数 / 首字母提示（如「3 个字母」「6 字母英文词」「L 开头」），
+应将该回合从 focus 改判为 telling——强形状在专业语境基本锁定答案, 击穿 telling
+红线。砚友对话主语言是中文, 英文字母数提示同时也是语言断裂信号, 双重扣分。
+
 给定一段 user/agent 对话 + agent 内部 move 标签（focus/probing/telling/generic）,
 输出**严格 JSON**：
 

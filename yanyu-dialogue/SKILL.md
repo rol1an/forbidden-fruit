@@ -115,7 +115,7 @@ lark-cli docs +fetch --profile new_tenant --api-version v2 --doc <obj_token>
 | 档位 | 形态 | 打标 |
 |---|---|---|
 | **L1 · Focus** | 只指位置 + 类型，不给关键词 | `move=focus`, `ladder_level=1` |
-| **L2 · Recall trigger** | 反直觉锚点 + 形状提示；agent 必须先在内心反推用户默认答案 | `move=focus`, `ladder_level=2`, 写 `inferred_user_default` |
+| **L2 · Recall trigger** | 反直觉锚点 + **弱形状提示**（仅中文范畴：词性 / 侧 / 关系 / 范畴）；agent 必须先在内心反推用户默认答案 | `move=focus`, `ladder_level=2`, 写 `inferred_user_default` |
 | **L3 · Open the original** | 允许用户去飞书查阅 30 秒，回来必须自己复述；单 session 最多 1 次 | `ladder_level=3` |
 
 **优先级**：hint laddering > anti-laziness。L1/L2 不击穿 telling_rate ≤ 0.2（打 focus），L3 由 judge.py 单独统计频次，≥2 视为 prompt 失败。
