@@ -25,6 +25,8 @@ from typing import Any
 
 MOVES_TELLING = {"telling"}
 PROBING_STAGES = ["A", "B", "C", "D", "E"]
+LADDER_LEVELS = [1, 2, 3]  # 决策 7: hint ladder 三档
+L3_OVERUSE_THRESHOLD = 2  # L3 单 session 触发 ≥ 此值 = prompt 失败信号
 
 JUDGE_SYSTEM = """你是一位**严厉**的教学评估官，专门审查 Socratic agent 的对话质量。
 
@@ -32,7 +34,12 @@ JUDGE_SYSTEM = """你是一位**严厉**的教学评估官，专门审查 Socrat
 喂答案、跳过 reasoning、用户没真正自己悟到的迹象，必须扣分。Khanmigo 自己 pre-post 都
 没显著差异——你看到的大概率不是真正的"悟到"。
 
-给定一段 user/agent 对话 + agent 内部 move 标签（focus/probing/telling/generic），
+**决策 7 新增**：hint ladder L1/L2 计入 focus 不算 telling；L3 (open original) 单独
+标 ladder_level=3。如果同一 session 出现 ladder_level=3 ≥2 次, 视为 scaffolding
+设计失败（L1/L2 应覆盖 ≥80% 卡死案例, L3 是兜底）, 扣 probing_depth 分。L2 必须带
+inferred_user_default 字段, 缺字段视为 agent 盲猜反直觉锚点 → 扣分。
+
+给定一段 user/agent 对话 + agent 内部 move 标签（focus/probing/telling/generic）,
 输出**严格 JSON**：
 
 {
@@ -68,6 +75,37 @@ def _stage_coverage(turns: list[dict[str, Any]]) -> dict[str, int]:
     return cov
 
 
+def _count_ladder(turns: list[dict[str, Any]]) -> dict[str, Any]:
+    """统计决策 7 的 hint ladder L1/L2/L3 触发次数。
+
+    返回:
+        {
+            "l1_count": int,
+            "l2_count": int,
+            "l3_count": int,
+            "overuse_warning": bool,             # L3 ≥ L3_OVERUSE_THRESHOLD
+            "l2_missing_default": int,           # L2 但没写 inferred_user_default 的次数 (盲猜反直觉锚点)
+        }
+    """
+    counts = {lv: 0 for lv in LADDER_LEVELS}
+    l2_missing = 0
+    for t in turns:
+        if t.get("role") != "agent":
+            continue
+        lv = t.get("ladder_level")
+        if lv in counts:
+            counts[lv] += 1
+            if lv == 2 and not t.get("inferred_user_default"):
+                l2_missing += 1
+    return {
+        "l1_count": counts[1],
+        "l2_count": counts[2],
+        "l3_count": counts[3],
+        "overuse_warning": counts[3] >= L3_OVERUSE_THRESHOLD,
+        "l2_missing_default": l2_missing,
+    }
+
+
 def _stub_judge(turns: list[dict[str, Any]]) -> dict[str, Any]:
     """无 API / mock 时的回退评估，靠 move 标签 + 阶段标签算。"""
     move_counts = _count_moves(turns)
@@ -91,13 +129,23 @@ def _stub_judge(turns: list[dict[str, Any]]) -> dict[str, Any]:
         if has_d and has_e and last_len >= 40:
             aha = 0.75
 
+    ladder_stats = _count_ladder(turns)
+    reason = f"stub: stages_hit={stages_hit}/5, telling={telling}/{agent_total}"
+    if ladder_stats["overuse_warning"]:
+        reason += f" | L3 overuse ({ladder_stats['l3_count']} times) — scaffolding 设计失败"
+        # L3 滥用同时扣 probing_depth (兜底用太多 = 主路径设计差)
+        probing_depth *= 0.7
+    if ladder_stats["l2_missing_default"] > 0:
+        reason += f" | {ladder_stats['l2_missing_default']} 个 L2 未填 inferred_user_default (盲猜)"
+
     return {
         "telling_rate": round(telling_rate, 2),
         "probing_depth": round(probing_depth, 2),
         "aha_moment_confidence": round(aha, 2),
-        "reason": f"stub: stages_hit={stages_hit}/5, telling={telling}/{agent_total}",
+        "reason": reason,
         "_move_counts": move_counts,
         "_stage_coverage": cov,
+        "_ladder_stats": ladder_stats,
     }
 
 
@@ -150,6 +198,7 @@ def judge_session(session: dict[str, Any], mock: bool = False) -> dict[str, Any]
         # 合并 stub 的辅助字段供 dashboard 用
         result["_move_counts"] = stub_result["_move_counts"]
         result["_stage_coverage"] = stub_result["_stage_coverage"]
+        result["_ladder_stats"] = stub_result["_ladder_stats"]
         return result
     except json.JSONDecodeError as e:
         sys.stderr.write(f"[judge] LLM bad JSON ({e}); falling back to stub.\n")
