@@ -69,9 +69,11 @@ agent 生成回复后，**内心**用以下 prompt 做四分类（不输出给�
 只回答 JSON：{"move": "focus|probing|telling|generic", "reason": "<10 字内>"}
 ```
 
-输出落 session.json 的 `turns[].agent_move` 字段。
+输出落 session.json 的 `turns[].move` 字段。
 
 ## session.json 中的 move 序列示例
+
+字段约定（**与 eval/judge.py 实际读法一致**）：`role` ∈ {agent, user}；`content` = 文本；`move` ∈ {focus, probing, telling, generic}。
 
 ```json
 {
@@ -79,27 +81,29 @@ agent 生成回复后，**内心**用以下 prompt 做四分类（不输出给�
   "mode": "grinding",
   "pacing_active": false,
   "turns": [
-    {"speaker": "agent", "text": "你觉得 RAG 召回率瓶颈在哪一层——embedding / chunking / rerank？", "agent_move": "probing", "stage": "A"},
-    {"speaker": "user", "text": "embedding 模型本身吧"},
-    {"speaker": "agent", "text": "为什么不是 chunking？你的项目里 chunk 跨段语义断裂的情况怎么处理？", "agent_move": "probing", "stage": "A"},
-    {"speaker": "user", "text": "嗯……跨段断裂确实没考虑"},
-    {"speaker": "agent", "text": "你刚才意识到的这个 gap，正是大多数 RAG 项目的 silent failure。", "agent_move": "telling", "stage": "C", "pacing_telling": false},
-    {"speaker": "user", "text": "嗯……我想不起来作者那一节具体怎么处理跨段的"},
-    {"speaker": "agent", "text": "这答案在《RAG 召回分层实战》的 '跨段语义保留' 那一节——先回想那一节给的是哪类解决方案？", "agent_move": "focus", "stage": "B", "ladder_level": 1},
-    {"speaker": "user", "text": "嗯我还是想不起来"},
-    {"speaker": "agent", "text": "反直觉之处在于不是 chunking 大小, 在 chunk 的**边界**——一个 6 个字母的英文词。", "agent_move": "focus", "stage": "B", "ladder_level": 2, "inferred_user_default": "chunking 大小"}
+    {"role": "agent", "content": "你觉得 RAG 召回率瓶颈在哪一层——embedding / chunking / rerank？", "move": "probing", "stage": "A"},
+    {"role": "user", "content": "embedding 模型本身吧"},
+    {"role": "agent", "content": "为什么不是 chunking？你的项目里 chunk 跨段语义断裂的情况怎么处理？", "move": "probing", "stage": "A"},
+    {"role": "user", "content": "嗯……跨段断裂确实没考虑"},
+    {"role": "agent", "content": "你刚才意识到的这个 gap，正是大多数 RAG 项目的 silent failure。", "move": "telling", "stage": "C", "pacing_telling": false},
+    {"role": "user", "content": "嗯……我想不起来作者那一节具体怎么处理跨段的"},
+    {"role": "agent", "content": "这答案在《RAG 召回分层实战》的'跨段语义保留'那一节——先回想那一节给的是哪类解决方案？", "move": "focus", "stage": "B", "ladder_level": 1},
+    {"role": "user", "content": "嗯我还是想不起来"},
+    {"role": "agent", "content": "反直觉之处在于不是 chunk 大小, 而是 chunk 的另一个属性——这个属性跟 rerank 同一侧。", "move": "focus", "stage": "B", "ladder_level": 2, "inferred_user_default": "chunk 大小"}
   ]
 }
 ```
 
-注意 L1 / L2 两条都打 `move=focus`，副标签 `ladder_level` 区分档位；L2 必带 `inferred_user_default` 字段。
+注意 L1 / L2 两条都打 `move=focus`，副标签 `ladder_level` 区分档位；L2 必带 `inferred_user_default` 字段。L2 形状提示使用**中文范畴**（词性 / 侧 / 关系），**禁止**英文字母数 / 缩写位数 / 首字母提示（语言断裂 + 击穿 telling 红线）。
 
 注意最后一条 `telling` 在 stage C（假设挑战 → 印证），属于"用户自己悟到后才贴的印证 telling"——这是被允许的。eval/judge.py 会区分。
 
 ## 与 eval/judge.py 的契约
 
 `judge.py` 期望读 session.json 的：
-- `turns[].agent_move` ∈ {focus, probing, telling, generic}
+- `turns[].role` ∈ {agent, user}
+- `turns[].content` = 文本
+- `turns[].move` ∈ {focus, probing, telling, generic}
 - `turns[].stage` ∈ {A, B, C, D, E, fusion-碰撞, fusion-质疑, fusion-收敛}
 - `turns[].ladder_level` ∈ {1, 2, 3, null}（决策 7）
 - `turns[].inferred_user_default` ∈ {str, null}（仅 L2 必填，供 judge.py 抽查 agent 默认答案推断是否合理）
