@@ -80,6 +80,29 @@ def _stage_coverage(turns: list[dict[str, Any]]) -> dict[str, int]:
     return cov
 
 
+def _check_inkstone_repetition(session: dict[str, Any] | None) -> dict[str, Any]:
+    """决策 7 砚石痕迹: 检测同一 callout 文案在 session 内重复 ≥3 次。
+
+    session.inkstone_traces[].callout 是 session-level 字段, 不属于单 turn。
+    没有该字段或 session=None 时返回零结果 (兼容旧 session.json)。
+    """
+    if not session:
+        return {"repetition_count": 0, "warning": False, "duplicates": []}
+    traces = session.get("inkstone_traces", []) or []
+    callout_counts: dict[str, int] = {}
+    for t in traces:
+        callout = (t or {}).get("callout", "")
+        if callout:
+            callout_counts[callout] = callout_counts.get(callout, 0) + 1
+    duplicates = [(c, n) for c, n in callout_counts.items() if n >= 3]
+    return {
+        # 累计"超额"次数: 每条重复 n 次 = n-2 次过度 (因为前 2 次是正常的)
+        "repetition_count": sum(n - 2 for _, n in duplicates),
+        "warning": len(duplicates) > 0,
+        "duplicates": duplicates,
+    }
+
+
 def _count_ladder(turns: list[dict[str, Any]]) -> dict[str, Any]:
     """统计决策 7 的 hint ladder L1/L2/L3 触发次数。
 
@@ -111,8 +134,16 @@ def _count_ladder(turns: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _stub_judge(turns: list[dict[str, Any]]) -> dict[str, Any]:
-    """无 API / mock 时的回退评估，靠 move 标签 + 阶段标签算。"""
+def _stub_judge(
+    turns: list[dict[str, Any]],
+    session: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """无 API / mock 时的回退评估，靠 move 标签 + 阶段标签算。
+
+    session 参数（决策 7）：可选, 用于检测 session-level 字段如 inkstone_traces。
+    旧 caller 不传也兼容。
+    """
+    session_data = session
     move_counts = _count_moves(turns)
     agent_total = sum(move_counts.values()) or 1
     telling = move_counts.get("telling", 0)
@@ -141,7 +172,14 @@ def _stub_judge(turns: list[dict[str, Any]]) -> dict[str, Any]:
         # L3 滥用同时扣 probing_depth (兜底用太多 = 主路径设计差)
         probing_depth *= 0.7
     if ladder_stats["l2_missing_default"] > 0:
-        reason += f" | {ladder_stats['l2_missing_default']} 个 L2 未填 inferred_user_default (盲猜)"
+        # L2 没填 inferred_user_default = agent 盲猜反直觉锚点 ≈ telling 行为
+        # 每个缺字段的 L2 给 telling_rate 软扣 0.05 (clamp 上限 1.0)
+        telling_rate = min(telling_rate + 0.05 * ladder_stats["l2_missing_default"], 1.0)
+        reason += f" | {ladder_stats['l2_missing_default']} 个 L2 未填 inferred_user_default (盲猜, telling+0.05/each)"
+
+    inkstone_stats = _check_inkstone_repetition(session_data)
+    if inkstone_stats["warning"]:
+        reason += f" | inkstone callout 重复 {len(inkstone_stats['duplicates'])} 处"
 
     return {
         "telling_rate": round(telling_rate, 2),
@@ -151,6 +189,7 @@ def _stub_judge(turns: list[dict[str, Any]]) -> dict[str, Any]:
         "_move_counts": move_counts,
         "_stage_coverage": cov,
         "_ladder_stats": ladder_stats,
+        "_inkstone_stats": inkstone_stats,
     }
 
 
@@ -166,7 +205,7 @@ def judge_session(session: dict[str, Any], mock: bool = False) -> dict[str, Any]
         }
 
     # 总是先算 stub 版（提供辅助统计字段给 dashboard）
-    stub_result = _stub_judge(turns)
+    stub_result = _stub_judge(turns, session=session)
 
     if mock:
         return stub_result
@@ -204,6 +243,7 @@ def judge_session(session: dict[str, Any], mock: bool = False) -> dict[str, Any]
         result["_move_counts"] = stub_result["_move_counts"]
         result["_stage_coverage"] = stub_result["_stage_coverage"]
         result["_ladder_stats"] = stub_result["_ladder_stats"]
+        result["_inkstone_stats"] = stub_result["_inkstone_stats"]
         return result
     except json.JSONDecodeError as e:
         sys.stderr.write(f"[judge] LLM bad JSON ({e}); falling back to stub.\n")
