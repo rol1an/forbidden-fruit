@@ -335,3 +335,118 @@ reviewer 指出的"已引用但未实现"清单（除已经修的 4 个）：
 - 三个致命问题是否真的解决了
 - pacing/teacher-move/V1.5 三个升级是否真的提升了对话质量
 - 22 天剩余 12 天给出 final 冲刺建议
+
+---
+
+## 决策 7 · hint laddering + 砚石痕迹（用户反馈驱动 · 5-22 当日落地）
+
+> 2026-05-22 · 真实用户实测反馈触发的非计划决策。一气呵成 P0 14 个 commit 入库, regression 7/7 PASS。
+
+### 触发原因
+
+5-22 用户在 Trae SOLO 桌面端**实测**砚友后给出两条反馈：
+
+1. **scaffolding 不足**：研友提问时给的提示太少；用户被卡住时**绕开砚友**自己去飞书查阅文档再回来答 → 研磨摩擦被绕过
+2. **缺成就感 + 过程漫长**：整个使用过程缺乏 small win；用户提议"进度条 + 80-100% 阈值触发放答案"
+
+### 用户提议"阈值放答案"的风险（不可采纳）
+
+直接击穿三处：
+
+- agent 主动给答案 = 破 telling_rate ≤ 0.2 红线（铁律 1, 4）
+- 外驱挤压内驱（Deci & Ryan 1999 meta-analysis 实证）
+- 剥夺 D 阶段 aha-moment 所有权（"我自己悟到了" 变成 "系统判定我合格"）
+
+### 范围（一气呵成 P0, 1 天内完成）
+
+**A · scaffolding hint laddering**（响应反馈 1）
+
+三档脚手架，区分于 anti-laziness（态度问题）和 pacing（情绪问题）。优先级 ladder > anti-laziness, pacing 并联生效：
+
+| 档位 | 给什么 | 打标 |
+|---|---|---|
+| L1 Focus | 位置 + 类型 | `move=focus`, `ladder_level=1` |
+| L2 Recall trigger | 反直觉锚点 + **中文范畴弱形状**（词性 / 侧 / 关系） | `move=focus`, `ladder_level=2`, 必填 `inferred_user_default` |
+| L3 Open original | 允许用户去飞书查阅 30 秒, 回来必须**自己复述**, 单 session 上限 1 次 | `ladder_level=3` |
+
+**关键设计**（经 reviewer C2 修订）：
+
+- L2 形状提示**仅允许中文范畴**（「是动词还是名词」「是用户侧还是 agent 侧」「跟 X 同一侧还是反侧」）
+- **禁止英文字母数 / 缩写位数 / 首字母**——在专业语境基本锁定答案（击穿 telling 红线 + 中文对话语言断裂）
+- L3 把用户"绕路看文档"**正名为合法 ladder**, 加"自己复述"约束确保不退化为搬运
+
+**B · 砚石痕迹 informational feedback**（响应反馈 2）
+
+对话内嵌轻量 callout，给"已走多远"不给"还差多少"：
+
+- MVP 触发：stage transition（A→B / B→C 等）+ every-5-rounds 强制盘点
+- pacing 模式下降密到 every-8-rounds
+- 格式：`🪨 第 X 阶段 → 第 Y 阶段。<情感锚点观察>。` 或 `📿 砚石痕迹：<observation>。`
+- **禁止**：百分比 / 进度条 / "还差多少" / "Bloom 第 X 层"（jargon leak）/ cheerleading 腔
+- 高频失败处理：用户问「我现在到第几了」→ 反问「你刚才那一步比 3 轮前是更深还是更浅？」
+- **P1 闸门**：Bloom 跨级跃升触发必须先通过 `eval/bloom_agreement.py` agreement ≥ 85%（20 条人工标注 fixture 已建好）
+
+### 改动清单（14 个 commit, bd471b3 → c777c4f）
+
+| 文件 | 改动 |
+|---|---|
+| `yanyu-dialogue/references/hint-laddering.md` | **新建** (135 行, 决策 7 主协议) |
+| `yanyu-dialogue/references/inkstone-trace.md` | **新建** (128 行, 砚石痕迹协议) |
+| `yanyu-dialogue/SKILL.md` | 加 §3.x §3.y 挂载 + §3.y 高频失败处理 |
+| `yanyu-dialogue/references/anti-laziness-templates.md` | 顶部加分流指引（能力问题→ladder / 态度问题→本文件）|
+| `yanyu-dialogue/references/teacher-move-classifier.md` | 加 ladder 副标签契约 + 示例 schema 对齐 `role/content/move` |
+| `yanyu-dialogue/eval/judge.py` | `_count_ladder` + L3 overuse 扣分 + `l2_missing` 软扣 + `_check_inkstone_repetition` |
+| `yanyu-dialogue/eval/bloom_tagger.py` | 加 `chinese_label` 字段（触碰 / 看懂 / 拆解 / 重构 / 评判 / 创造）|
+| `yanyu-dialogue/eval/fixtures/bloom_agreement_set.json` | **新建** (20 条砚友风格人工标注, stratified) |
+| `yanyu-dialogue/eval/bloom_agreement.py` | **新建** (CLI 跑 agreement test, ≥85% 闸门) |
+| `yanyu-dialogue/eval/regression.py` | `_mock_session` 支持 `l1/l2/l3` 标识 + `overuse_ok` 验证 |
+| `yanyu-dialogue/eval/fixtures/regression_set.json` | 加 2 条 ladder fixture 覆盖决策 7 代码路径 |
+
+### Reviewer 三项 critical 修复（commit f6f377e / 96797ad / 48b7ede）
+
+- **C1**：teacher-move-classifier 示例 schema 从 `speaker/text/agent_move` 对齐 `role/content/move`（否则 ladder 监控空转）
+- **C2**：L2 形状提示删强保弱（中文范畴），守住 telling_rate + 语言一致性
+- **C3**：regression 加 2 条 ladder fixture，决策 7 代码路径首次被覆盖
+
+### Nice-to-have 四项（commit 085790c / b58463f / c777c4f）
+
+- N1：`l2_missing_default > 0` → telling_rate 软扣 0.05 / each（agent 盲猜反直觉锚点 ≈ telling 行为）
+- N2：bloom_003 标注 remember → understand（"作者用 ColBERT 还是另一种"有比对成分）
+- N3：`_check_inkstone_repetition` 检测同 callout 出现 ≥3 次 = prompt 失败信号
+- N4：SKILL.md §3.y 升"我现在到第几了"高频失败处理
+
+### 排期与最终验证
+
+| 阶段 | 工时 | 状态 |
+|---|---|---|
+| P0 全部（主线 8 项 + reviewer 3 项 + nice-to-have 4 项）| 1 天 | ✅ 5-22 当日完成 |
+| P1 Bloom 跨级跃升触发（依赖 `bloom_agreement.py` ≥85%）| 0.5 天 | 🔵 5-30 之后 |
+| P2 研磨结晶卡（Anki SRS 哲学路线, 长程沉淀感）| 3-4 天 | 🔵 5-30 朋友反馈后决定 |
+
+**最终回归**：`python3 -m eval.regression --mock --verbose` 7/7 PASS，telling_rate 全部 ≤ 0.2 守住红线。新增的 `ladder_normal_l1_l2` 和 `ladder_l3_overuse_scaffolding_fail` 两条 fixture 真触发了 `_count_ladder` + `overuse_warning` + `probing_depth × 0.7` 扣分逻辑。
+
+### SOTA 锚点
+
+- **Wood, Bruner & Ross (1976)** scaffolding 6 functions —— *frustration control* + *marking critical features* 是 hint laddering 的设计根据
+- **Vygotsky ZPD** —— hint 必须落在最近发展区内；"换更小的问题"是问题降级而非 hint
+- **MathDial focus move**（[arXiv:2305.14536](https://arxiv.org/abs/2305.14536)）—— telling 和 probing 之间存在不击穿红线的合法 hint 形态
+- **Deci, Koestner & Ryan (1999)** 128 项实验 meta-analysis —— informational feedback **不构成**内驱挤压, 砚石痕迹只显示"已走多远"恰好落在 informational 一侧, 理论合法
+- **Khan Academy Mastery Levels** —— named tier 替代 raw % 行业 SOTA 验证；砚友 Bloom 中文转译表（触碰/看懂/拆解/重构/评判/创造）借鉴这条路径
+- **Michael Nielsen, Augmenting Long-term Memory**（[augmentingcognition.com/ltm.html](https://augmentingcognition.com/ltm.html)）—— 进度感可来自沉淀物积累而非 UI feedback（启发 P2 研磨结晶卡）
+- **Eedi/LearnLM 报告**——44.3% pacing + 19.5% 情感缓冲 = 63.8% 真人编辑量, 砚石痕迹 callout 必须有情感锚点
+- **arXiv:2511.10903** —— GPT-4 在 Bloom 6 层 accuracy 0.72-0.73, 砚友 agreement ≥ 85% 阈值有意拔高一截（Bloom 误判信任崩盘代价 > telling 红线违规）
+
+### 决策 7 与其他决策的关系
+
+- **决策 2**（合并 yanyu-dialogue）：完全兼容, 在合并后的 SKILL.md 上加 §3.x §3.y
+- **决策 6b**（LLM-judge eval + Bloom dashboard）：强复用基建, 加 `_ladder_stats` + `_inkstone_stats` 字段, dashboard P1 可视化复用
+- **决策 6c**（pacing detection）：优先级 ladder > anti-laziness, pacing 并联生效（pacing 模式下 ladder 节奏放慢一档）
+- **决策 6d**（MathDial 四分类）：L1/L2 计入 focus, L3 单独副标签——首次让"内心打标 focus 类目"有实际使用场景
+
+### 关键文件链接
+
+- 主协议：[`../yanyu-dialogue/references/hint-laddering.md`](../yanyu-dialogue/references/hint-laddering.md)
+- 砚石痕迹：[`../yanyu-dialogue/references/inkstone-trace.md`](../yanyu-dialogue/references/inkstone-trace.md)
+- 挂载点：[`../yanyu-dialogue/SKILL.md`](../yanyu-dialogue/SKILL.md) §3.x §3.y
+- 评估契约：[`../yanyu-dialogue/references/teacher-move-classifier.md`](../yanyu-dialogue/references/teacher-move-classifier.md) §Ladder level 副标签
+- P1 闸门：[`../yanyu-dialogue/eval/bloom_agreement.py`](../yanyu-dialogue/eval/bloom_agreement.py)
