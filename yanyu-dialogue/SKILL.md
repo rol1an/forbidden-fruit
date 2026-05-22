@@ -100,6 +100,48 @@ lark-cli docs +fetch --profile new_tenant --api-version v2 --doc <obj_token>
 
 **但**：如果 pacing detection 触发了（见前置 §2），允许用 telling move 解释陌生术语——1 句话解释完立刻反问。
 
+#### Step 3.x · 卡死时的 hint laddering（决策 7，必读 [`references/hint-laddering.md`](references/hint-laddering.md)）
+
+回应 5-22 用户实测反馈 1：被卡住时绕开砚友去飞书自查文档 → 研磨摩擦被绕过。这是 scaffolding 缺位（不是态度问题）。
+
+**何时触发**（区分于 anti-laziness）：用户**想答但卡死**——
+
+- 明确空白信号："想不起来 / 不记得 / 我忘了 / 我没看过这部分"
+- 虚答检测：单轮回复形容词 ≥3 个但实质名词/动词 ≤1 个（"我觉得这个跟…有点关系吧大概"）
+- 连续 ≥2 轮卡壳但用户**没要答案**
+
+**三档 Ladder，禁止跳级**：
+
+| 档位 | 形态 | 打标 |
+|---|---|---|
+| **L1 · Focus** | 只指位置 + 类型，不给关键词 | `move=focus`, `ladder_level=1` |
+| **L2 · Recall trigger** | 反直觉锚点 + 形状提示；agent 必须先在内心反推用户默认答案 | `move=focus`, `ladder_level=2`, 写 `inferred_user_default` |
+| **L3 · Open the original** | 允许用户去飞书查阅 30 秒，回来必须自己复述；单 session 最多 1 次 | `ladder_level=3` |
+
+**优先级**：hint laddering > anti-laziness。L1/L2 不击穿 telling_rate ≤ 0.2（打 focus），L3 由 judge.py 单独统计频次，≥2 视为 prompt 失败。
+
+详细模板、触发判断、失败处理 → [`references/hint-laddering.md`](references/hint-laddering.md)
+
+#### Step 3.y · 砚石痕迹反馈（决策 7，必读 [`references/inkstone-trace.md`](references/inkstone-trace.md)）
+
+回应 5-22 用户实测反馈 2：研磨过程漫长缺乏成就感。**MVP 范围**：仅 stage transition + every-5-rounds 触发——无 LLM 误判风险。Bloom 跨级跃升触发列入 **P1 闸门**，必须先通过 `eval/bloom_agreement.py` agreement ≥85%。
+
+**Callout 格式**（在常规回复之后**追加一行**，不替代回复）：
+
+```text
+🪨 第 X 阶段 → 第 Y 阶段。<一句 observation, 含情感锚点>。
+```
+
+或每 5 轮强制盘点：
+
+```text
+📿 砚石痕迹：<观察句, 含情感锚点>。
+```
+
+**禁止**：百分比 / 进度条 / "还差多少" / "你完成了 X%" / "你触达 Bloom 第 X 层"（jargon leak）/ cheerleading 腔。SDT 外驱反噬 + 哲学红线。
+
+详细文案、术语转译表、失败处理 → [`references/inkstone-trace.md`](references/inkstone-trace.md)
+
 ### Step 4 · 关键点印证（D 阶段，仅在用户自己悟到后）
 
 用户自己说出文章核心论点 → 才贴原文 1-2 句话："作者在这段就是这么说的，对照你刚才的推理看……"
