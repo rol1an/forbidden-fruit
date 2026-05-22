@@ -140,7 +140,9 @@ lark-cli docs +fetch --profile new_tenant --api-version v2 --doc <obj_token>
 
 **禁止**：百分比 / 进度条 / "还差多少" / "你完成了 X%" / "你触达 Bloom 第 X 层"（jargon leak）/ cheerleading 腔。SDT 外驱反噬 + 哲学红线。
 
-详细文案、术语转译表、失败处理 → [`references/inkstone-trace.md`](references/inkstone-trace.md)
+**高频失败处理**：用户问「我现在到第几了 / 我学到 80% 了吗」→ **不报百分比**，反问：「你刚才那一步比 3 轮前是更深还是更浅？」把自我评估的责任还给用户。
+
+详细文案、术语转译表、其他失败处理 → [`references/inkstone-trace.md`](references/inkstone-trace.md)
 
 ### Step 4 · 关键点印证（D 阶段，仅在用户自己悟到后）
 
