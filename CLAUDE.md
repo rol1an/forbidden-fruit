@@ -60,7 +60,7 @@ forbiddenfruit/
 │
 ├── docs/                    ← 给 agent / reviewer / 评审 / 未来你看的
 │   ├── PLAN.md              ← 原始 22 天交付方案（不动 · 时间戳锚）
-│   ├── PLAN_v2_DECISIONS.md ← 6 大决策叠加层（active）
+│   ├── PLAN_v2_DECISIONS.md ← 7 大决策叠加层（active, 含决策 7 hint laddering + 砚石痕迹）
 │   ├── PITCH.md             ← README/答辩/blog 所有物料的取材源 ⭐
 │   ├── BUSINESS.md          ← 商业可行性 + Study Mode reframe 附录
 │   ├── DESIGN.md            ← 视觉规范（朱砂 / 砚石与墨）
@@ -80,7 +80,8 @@ forbiddenfruit/
 | **刚接手项目，先理解全貌** | 本文件 → `docs/PITCH.md` → `docs/PLAN_v2_DECISIONS.md` |
 | **要写发帖/README/答辩话术** | **必读 `docs/PITCH.md`**（含四大出彩点 + Ultimate Pitch + Q&A + 短语词典 + 地雷清单），不要在别处重新发明叙事 |
 | **要改 SKILL.md / references/** | 先读 `yanyu-dialogue/SKILL.md` + 相关 reference + `docs/TECH_RESEARCH.md` 对应方向 |
-| **要做工程实施** | `docs/PLAN_v2_DECISIONS.md` § 决策 1-6（每条都有完整接口设计 + 范围 + 排期）|
+| **要做工程实施** | `docs/PLAN_v2_DECISIONS.md` § 决策 1-7（每条都有完整接口设计 + 范围 + 排期）|
+| **要改 hint laddering / 砚石痕迹** | `yanyu-dialogue/references/hint-laddering.md` + `inkstone-trace.md` + PLAN_v2 §决策 7 |
 | **要做视觉/排版** | `docs/DESIGN.md`（朱砂 #A0322C 全篇 ≤3 处 / 标题宋体正文黑体）|
 | **想知道为什么这么决定** | `docs/REVIEW_001.md` + `docs/BUSINESS.md` + `docs/TECH_RESEARCH.md` 风险提示 |
 | **要跟评审解释飞书锁死** | `docs/BUSINESS.md` §5 + 决策 1 LocalFileBackend |
@@ -99,6 +100,7 @@ forbiddenfruit/
 - 7 个 docs 全部就位（44.3% 数据风险已修复 + Eedi Substack 真实出处验证）
 - Trae SOLO 兼容性实测：A（自动选 skill）/ B（调 shell）/ C（返回真实数据）全 ✅
 - GitHub 仓库已 push（public）
+- **决策 7 P0 完成**（5-22 用户实测反馈驱动）: hint laddering L1/L2/L3 + 砚石痕迹 MVP（stage transition + every-5-rounds 触发） + Bloom agreement test P1 闸门脚手架 + reviewer 三项 critical 修复 + 4 项 nice-to-have。14 commits（bd471b3..c777c4f）+ 1 commit PLAN_v2 章节追加。regression 7/7 PASS, telling_rate 全部 ≤ 0.2 守住红线
 
 ### 🔄 待办（按优先级）
 
@@ -114,7 +116,7 @@ forbiddenfruit/
 
 ---
 
-## 6 大决策摘要（一句话版）
+## 7 大决策摘要（一句话版）
 
 | 决策 | 一句话 | 详见 |
 |---|---|---|
@@ -126,6 +128,7 @@ forbiddenfruit/
 | 6b | **LLM-judge eval + Bloom dashboard**（破"8 天 prompt 瞎调"+ demo 视频里的工程透明度杀手锏）| PLAN_v2 §决策 6b ✅ |
 | 6c | **Pacing detection**（LearnLM 44.3% 编辑都在调 pacing → 砚友"不投降但会让步"）| PLAN_v2 §决策 6c ✅ |
 | 6d | MathDial **focus/probing/telling/generic 四分类**（agent 内心打标 + judge.py 算 telling_rate）| PLAN_v2 §决策 6d ✅ |
+| 7 | **hint laddering L1/L2/L3 + 砚石痕迹**（5-22 用户实测驱动: 反 scaffolding 不足 + 反 SDT 外驱反噬, 拒绝"阈值放答案"）| PLAN_v2 §决策 7 ✅ |
 
 ---
 
