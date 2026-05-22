@@ -33,5 +33,23 @@
     "topic": "Agent 失败模式",
     "expected_moves": ["focus", "probing", "challenge", "challenge", "tell", "summary"],
     "expected_aha_keywords": ["loop", "工具误用"]
+  },
+  {
+    "name": "ladder_normal_l1_l2",
+    "initial_user_input": "我想深挖召回分层这篇，但有点想不起来具体细节",
+    "topic": "RAG 召回分层 - 卡死场景",
+    "expected_moves": ["focus", "probing", "l1", "l2", "challenge", "tell", "summary"],
+    "expected_aha_keywords": ["分层", "rerank"],
+    "expect_overuse": false,
+    "_comment": "决策 7: 验证 L1/L2 计入 focus 不击穿 telling_rate; ladder_l3_count=0 不触发 overuse"
+  },
+  {
+    "name": "ladder_l3_overuse_scaffolding_fail",
+    "initial_user_input": "我想学透 fine-tune，但我完全忘了细节",
+    "topic": "LLM 微调 - L3 滥用场景",
+    "expected_moves": ["focus", "probing", "l3", "probing", "l3", "summary"],
+    "expected_aha_keywords": ["微调", "灾难性遗忘"],
+    "expect_overuse": true,
+    "_comment": "决策 7: L3 触发 2 次应触发 overuse_warning + probing_depth × 0.7 扣分"
   }
 ]

@@ -36,6 +36,10 @@ def _mock_session(case: dict[str, Any]) -> dict[str, Any]:
     """根据 expected_moves 拼一份"理想 agent"虚拟 session，用于 judge 跑通。
 
     真集成测试要换成真正的 dialogue agent runner——目前只验证 eval 框架本身。
+
+    expected_moves 元素扩展（决策 7）:
+        focus / probing / challenge / tell / summary  # 原有
+        l1 / l2 / l3                                  # ladder 三档, move=focus, ladder_level=1/2/3
     """
     expected_moves = case.get("expected_moves", [])
     stage_map = {
@@ -44,28 +48,38 @@ def _mock_session(case: dict[str, Any]) -> dict[str, Any]:
         "challenge": "C",
         "tell": "D",
         "summary": "E",
+        "l1": "B",  # 卡壳引导
+        "l2": "B",
+        "l3": "B",
     }
-    # MathDial 四分类映射
+    # MathDial 四分类映射；l1/l2/l3 都打 focus，副标签 ladder_level 区分
     move_map = {
         "focus": "focus",
         "probing": "probing",
         "challenge": "probing",
         "tell": "telling",
         "summary": "generic",
+        "l1": "focus",
+        "l2": "focus",
+        "l3": "focus",
     }
+    ladder_level_map = {"l1": 1, "l2": 2, "l3": 3}
 
     turns: list[dict[str, Any]] = [
         {"role": "user", "content": case.get("initial_user_input", ""), "stage": "A"}
     ]
     for i, mv in enumerate(expected_moves):
-        turns.append(
-            {
-                "role": "agent",
-                "content": f"[mock agent turn {i} · move={mv}]",
-                "move": move_map.get(mv, "generic"),
-                "stage": stage_map.get(mv, "A"),
-            }
-        )
+        turn: dict[str, Any] = {
+            "role": "agent",
+            "content": f"[mock agent turn {i} · move={mv}]",
+            "move": move_map.get(mv, "generic"),
+            "stage": stage_map.get(mv, "A"),
+        }
+        if mv in ladder_level_map:
+            turn["ladder_level"] = ladder_level_map[mv]
+            if mv == "l2":
+                turn["inferred_user_default"] = "<mock-default-answer>"
+        turns.append(turn)
         # 用户应答（最后一回合放期望 aha keyword）
         if i == len(expected_moves) - 1:
             kws = " ".join(case.get("expected_aha_keywords", []))
@@ -99,7 +113,14 @@ def run_regression(
         missing_kws = _check_aha_keywords(sess, case.get("expected_aha_keywords", []))
         telling_ok = telling <= threshold
         kw_ok = len(missing_kws) == 0
-        ok = telling_ok and kw_ok
+
+        # 决策 7: ladder overuse 期望 (fixture 可选声明 expect_overuse)
+        ladder_stats = jr.get("_ladder_stats", {}) or {}
+        actual_overuse = bool(ladder_stats.get("overuse_warning", False))
+        expected_overuse = bool(case.get("expect_overuse", False))
+        overuse_ok = actual_overuse == expected_overuse
+
+        ok = telling_ok and kw_ok and overuse_ok
         if ok:
             pass_n += 1
         results.append(
@@ -111,6 +132,10 @@ def run_regression(
                 "missing_aha_keywords": missing_kws,
                 "probing_depth": jr.get("probing_depth"),
                 "aha_moment_confidence": jr.get("aha_moment_confidence"),
+                "overuse_ok": overuse_ok,
+                "actual_overuse": actual_overuse,
+                "expected_overuse": expected_overuse,
+                "ladder_stats": ladder_stats,
             }
         )
 
@@ -133,6 +158,10 @@ def run_regression(
                 extras.append(f"telling={r['telling_rate']:.2f}>{threshold}")
             if r["missing_aha_keywords"]:
                 extras.append(f"missing={r['missing_aha_keywords']}")
+            if not r.get("overuse_ok", True):
+                extras.append(
+                    f"overuse={r.get('actual_overuse')} expected={r.get('expected_overuse')}"
+                )
             extra = "  " + " ".join(extras) if extras else ""
             print(f"  [{mark}] {r['name']}{extra}")
     return summary
