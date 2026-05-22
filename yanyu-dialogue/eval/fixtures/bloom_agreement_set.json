@@ -1,0 +1,122 @@
+[
+  {
+    "id": "bloom_001",
+    "question": "RAGAS 的四个核心指标分别是什么？",
+    "human_label": "remember",
+    "reason": "直接事实回忆"
+  },
+  {
+    "id": "bloom_002",
+    "question": "BM25 公式里那个 k1 参数的标准取值范围是多少？",
+    "human_label": "remember",
+    "reason": "具体数值回忆"
+  },
+  {
+    "id": "bloom_003",
+    "question": "你这篇笔记里提的 multi-vector index，作者用的是 ColBERT 还是另一种？",
+    "human_label": "remember",
+    "reason": "事实定位"
+  },
+  {
+    "id": "bloom_004",
+    "question": "用你自己的话解释一下，BM25 和 dense retrieval 各自在召回什么样的 query 上占优？",
+    "human_label": "understand",
+    "reason": "复述 + 关系归纳"
+  },
+  {
+    "id": "bloom_005",
+    "question": "你怎么理解 parent-child chunking 里 parent 和 child 这两个角色的分工？",
+    "human_label": "understand",
+    "reason": "解释角色关系"
+  },
+  {
+    "id": "bloom_006",
+    "question": "DPO 和 PPO 在不需要 reward model 这一点上，本质区别在哪儿？",
+    "human_label": "understand",
+    "reason": "对比解释"
+  },
+  {
+    "id": "bloom_007",
+    "question": "如果让你用三句话给一个刚入门的人讲清楚 RAG 跟 long-context 的本质差异，你怎么讲？",
+    "human_label": "understand",
+    "reason": "归纳复述"
+  },
+  {
+    "id": "bloom_008",
+    "question": "如果你把 RAG 召回从 1000 文档扩到 100 万文档，你的 chunking 策略会怎么变？",
+    "human_label": "apply",
+    "reason": "新情境套用"
+  },
+  {
+    "id": "bloom_009",
+    "question": "把这篇讲 RAG 召回分层的方法搬到你公司的客服 ticket 检索场景，第一步先动哪里？",
+    "human_label": "apply",
+    "reason": "迁移到新场景"
+  },
+  {
+    "id": "bloom_010",
+    "question": "举一个你做过的项目里，RRF 重排比单路 dense 召回明显赢的具体 query 类型？",
+    "human_label": "apply",
+    "reason": "举例应用"
+  },
+  {
+    "id": "bloom_011",
+    "question": "你跑过的 RAG 项目里，两路都召回到对的 chunk 但 rerank 压下去过吗？这种 silent failure 根因通常在哪一层？",
+    "human_label": "analyze",
+    "reason": "拆 silent failure 根因"
+  },
+  {
+    "id": "bloom_012",
+    "question": "为什么 Khanmigo pre-post test 看不出统计显著学习增益？你拆一下可能的 confounding factors。",
+    "human_label": "analyze",
+    "reason": "拆 confound 结构"
+  },
+  {
+    "id": "bloom_013",
+    "question": "LangGraph 的 checkpointing 跟你之前用 LangChain 手维护 state 比，哪一步最让你松了口气，哪一步反而更绕？",
+    "human_label": "analyze",
+    "reason": "比较 + 拆 trade-off"
+  },
+  {
+    "id": "bloom_014",
+    "question": "fine-tune 一个 7B 模型和直接做 prompt engineering，在你的场景里，决策树的分叉点是什么？",
+    "human_label": "analyze",
+    "reason": "拆决策结构"
+  },
+  {
+    "id": "bloom_015",
+    "question": "你觉得 multi-vector index 真的能彻底解决长尾召回吗？如果不能，反驳点在哪？",
+    "human_label": "evaluate",
+    "reason": "判断 + 挑战"
+  },
+  {
+    "id": "bloom_016",
+    "question": "Khanmigo 自己 pre-post 都没显著差异——你觉得砚友的研磨摩擦路径会不会也是个伪命题？",
+    "human_label": "evaluate",
+    "reason": "评价方法论"
+  },
+  {
+    "id": "bloom_017",
+    "question": "你这篇笔记说 DPO no reward model 所以更简单——你信这个论点吗？它的盲点在哪？",
+    "human_label": "evaluate",
+    "reason": "挑战论点"
+  },
+  {
+    "id": "bloom_018",
+    "question": "重新设计你的 RAG 评估指标，让它能 catch 住 rerank 的 silent failure。具体怎么设计？",
+    "human_label": "create",
+    "reason": "设计新指标"
+  },
+  {
+    "id": "bloom_019",
+    "question": "如果让你设计一个针对长尾 query 的 ensemble 召回方案，你会怎么组合 BM25 / dense / hybrid 三路？",
+    "human_label": "create",
+    "reason": "合成新方案"
+  },
+  {
+    "id": "bloom_020",
+    "question": "你刚才说 agent 的人格不能投降——把这个原则推广到一个非教学场景，比如医疗咨询 agent，你会怎么落地？",
+    "human_label": "create",
+    "reason": "原则迁移合成"
+  }
+]
