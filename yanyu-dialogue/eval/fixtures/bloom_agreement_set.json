@@ -14,8 +14,8 @@
   {
     "id": "bloom_003",
     "question": "你这篇笔记里提的 multi-vector index，作者用的是 ColBERT 还是另一种？",
-    "human_label": "remember",
-    "reason": "事实定位"
+    "human_label": "understand",
+    "reason": "事实定位 + ColBERT vs 其他方法的比对 (reviewer 修订: remember 偏弱)"
   },
   {
     "id": "bloom_004",
