@@ -1,0 +1,37 @@
+[
+  {
+    "name": "rag_recall_layering",
+    "initial_user_input": "我想深挖一下 RAG 召回分层这篇",
+    "topic": "RAG 召回分层",
+    "expected_moves": ["focus", "probing", "probing", "challenge", "tell", "summary"],
+    "expected_aha_keywords": ["召回分层", "rerank"]
+  },
+  {
+    "name": "agent_orchestration",
+    "initial_user_input": "用砚友研磨 Agent 编排那篇",
+    "topic": "Agent 编排",
+    "expected_moves": ["focus", "probing", "challenge", "probing", "tell", "summary"],
+    "expected_aha_keywords": ["编排", "状态机"]
+  },
+  {
+    "name": "llm_finetune",
+    "initial_user_input": "苏格拉底式提问帮我学 LLM 微调那篇",
+    "topic": "LLM 微调",
+    "expected_moves": ["focus", "probing", "probing", "tell", "summary"],
+    "expected_aha_keywords": ["微调", "灾难性遗忘"]
+  },
+  {
+    "name": "rag_hybrid_retrieval_short_user",
+    "initial_user_input": "随便聊聊 RAG",
+    "topic": "RAG 混合检索",
+    "expected_moves": ["focus", "probing", "probing", "challenge", "summary"],
+    "expected_aha_keywords": ["BM25", "向量"]
+  },
+  {
+    "name": "agent_failure_modes_devil_advocate",
+    "initial_user_input": "我想被问住，学透 Agent 失败模式",
+    "topic": "Agent 失败模式",
+    "expected_moves": ["focus", "probing", "challenge", "challenge", "tell", "summary"],
+    "expected_aha_keywords": ["loop", "工具误用"]
+  }
+]
