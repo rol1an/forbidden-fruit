@@ -13,10 +13,33 @@ MathDial（EMNLP-2023, arXiv:2305.14536）建立了 3000 条人类教师 × LLM 
 
 | 类别 | 定义 | 示例 |
 |---|---|---|
-| **focus** | 把用户注意力从跑题/边角拉回主线 | "你刚提到 X，跟我们讨论的 Y 是什么关系？" / "我们回到 Step 3——你刚才说的方案对 chunk 跨段的情况怎么处理？" |
+| **focus** | 把用户注意力从跑题/边角拉回主线; **决策 7 后包含 hint ladder L1/L2** | "你刚提到 X，跟我们讨论的 Y 是什么关系？" / "我们回到 Step 3——你刚才说的方案对 chunk 跨段的情况怎么处理？" / L1: "答案在 <文章 X> '<某节>' 那一节——先回想那一节给的是哪类解决方案？" / L2: "反直觉之处在于不是 X，而是另一个机制——英文缩写 3 个字母。" |
 | **probing** | 追问深一层，要求用户给出更多 reasoning | "为什么？" / "如果换成 Z 呢？" / "这个推理基于哪个前提？" / "你怎么证明这一步成立？" |
 | **telling** | 直接告知信息 / 解释术语 / 贴原文片段 | "RAGAS 是基于 LLM-judge 的开源评估框架，包含 Faithfulness、Answer Relevancy 等指标。" |
 | **generic** | 通用 backchannel，不增加信息也不推进 reasoning | "嗯" / "对" / "好的" / "我懂了" / "继续说" |
+
+**决策 7 ladder 副标签**：[`hint-laddering.md`](hint-laddering.md) 的 L1/L2 hint 在主标签上计入 `focus`（**不算 telling**，不影响 telling_rate）；L3 (open original) 不计入主标签四分类，单独走 `ladder_level=3` 副字段。详见下方 [§Ladder level 副标签](#ladder-level-副标签决策-7) 章节。
+
+## Ladder level 副标签（决策 7）
+
+[`hint-laddering.md`](hint-laddering.md) 把"用户卡死"的脚手架拆成三档：
+
+| 档位 | 主标签 `move` | 副标签 `ladder_level` | 计 telling_rate？ |
+|---|---|---|---|
+| L1 · Focus | `focus` | `1` | 否 |
+| L2 · Recall trigger | `focus` | `2` | 否 |
+| L3 · Open original | `focus`（不实质给信息）| `3` | 否, 但单独统计频次 |
+
+`turns[]` 字段：
+
+- `ladder_level: 1 | 2 | 3 | null`（null = 非 ladder 回合）
+- `inferred_user_default: str | null`（仅 L2 必填；agent 必须先在内心反推用户脑中的默认答案）
+
+**eval/judge.py 期望统计**：
+
+- `ladder_l3_count`：单 session L3 触发次数
+- `ladder_overuse_warning`：`ladder_l3_count ≥ 2` → 视为 prompt 失败信号（L1/L2 应覆盖 ≥80% 卡死案例，L3 是兜底）
+- L1/L2 的 focus 不触发 over-focus 警告（与下方期望分布的 focus > 30% 警告分开记账）
 
 ## 期望分布（健康对话）
 
@@ -60,10 +83,16 @@ agent 生成回复后，**内心**用以下 prompt 做四分类（不输出给�
     {"speaker": "user", "text": "embedding 模型本身吧"},
     {"speaker": "agent", "text": "为什么不是 chunking？你的项目里 chunk 跨段语义断裂的情况怎么处理？", "agent_move": "probing", "stage": "A"},
     {"speaker": "user", "text": "嗯……跨段断裂确实没考虑"},
-    {"speaker": "agent", "text": "你刚才意识到的这个 gap，正是大多数 RAG 项目的 silent failure。", "agent_move": "telling", "stage": "C", "pacing_telling": false}
+    {"speaker": "agent", "text": "你刚才意识到的这个 gap，正是大多数 RAG 项目的 silent failure。", "agent_move": "telling", "stage": "C", "pacing_telling": false},
+    {"speaker": "user", "text": "嗯……我想不起来作者那一节具体怎么处理跨段的"},
+    {"speaker": "agent", "text": "这答案在《RAG 召回分层实战》的 '跨段语义保留' 那一节——先回想那一节给的是哪类解决方案？", "agent_move": "focus", "stage": "B", "ladder_level": 1},
+    {"speaker": "user", "text": "嗯我还是想不起来"},
+    {"speaker": "agent", "text": "反直觉之处在于不是 chunking 大小, 在 chunk 的**边界**——一个 6 个字母的英文词。", "agent_move": "focus", "stage": "B", "ladder_level": 2, "inferred_user_default": "chunking 大小"}
   ]
 }
 ```
+
+注意 L1 / L2 两条都打 `move=focus`，副标签 `ladder_level` 区分档位；L2 必带 `inferred_user_default` 字段。
 
 注意最后一条 `telling` 在 stage C（假设挑战 → 印证），属于"用户自己悟到后才贴的印证 telling"——这是被允许的。eval/judge.py 会区分。
 
@@ -72,6 +101,8 @@ agent 生成回复后，**内心**用以下 prompt 做四分类（不输出给�
 `judge.py` 期望读 session.json 的：
 - `turns[].agent_move` ∈ {focus, probing, telling, generic}
 - `turns[].stage` ∈ {A, B, C, D, E, fusion-碰撞, fusion-质疑, fusion-收敛}
+- `turns[].ladder_level` ∈ {1, 2, 3, null}（决策 7）
+- `turns[].inferred_user_default` ∈ {str, null}（仅 L2 必填，供 judge.py 抽查 agent 默认答案推断是否合理）
 - `pacing_active` boolean（影响 telling 阈值）
 
 算出来的 metrics：
