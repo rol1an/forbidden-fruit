@@ -92,34 +92,35 @@ def _stub_tag(question: str) -> dict[str, Any]:
 
 
 def tag_question(question: str, mock: bool = False) -> dict[str, Any]:
-    """主入口：给一句提问打 Bloom's 标签。"""
+    """主入口：给一句提问打 Bloom's 标签。
+
+    真 LLM 调用通过 eval.llm_backend 路由, 支持 YANYU_LLM_BACKEND=anthropic|deepseek。
+    Backend / API key / network 任一失败都 fallback 到 stub keyword tagger。
+    """
     if mock:
         return _stub_tag(question)
 
+    from . import llm_backend  # type: ignore
+
+    if not llm_backend.has_credential():
+        sys.stderr.write(
+            f"[bloom_tagger] {llm_backend.backend_name()} credential not set; "
+            "falling back to stub.\n"
+        )
+        return _stub_tag(question)
+
     try:
-        import anthropic  # type: ignore
-    except ImportError:
-        sys.stderr.write(
-            "[bloom_tagger] anthropic package not installed; falling back to stub.\n"
+        text = llm_backend.call_llm(
+            system=SYSTEM_PROMPT,
+            user=f"提问：{question}",
+            max_tokens=200,
         )
+    except llm_backend.LLMError as e:
+        sys.stderr.write(f"[bloom_tagger] {e}; falling back to stub.\n")
         return _stub_tag(question)
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        sys.stderr.write(
-            "[bloom_tagger] ANTHROPIC_API_KEY not set; falling back to stub.\n"
-        )
-        return _stub_tag(question)
-
-    client = anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=200,
-        system=SYSTEM_PROMPT,
-        messages=[{"role": "user", "content": f"提问：{question}"}],
-    )
-    text = msg.content[0].text.strip()
-    # 防御性 JSON 解析
+    # 防御性 JSON 解析 (DeepSeek 偶尔会包 ```json fence)
+    text = _strip_json_fence(text)
     try:
         result = json.loads(text)
         if result.get("level") not in BLOOM_LEVELS:
@@ -128,6 +129,20 @@ def tag_question(question: str, mock: bool = False) -> dict[str, Any]:
     except (json.JSONDecodeError, ValueError) as e:
         sys.stderr.write(f"[bloom_tagger] LLM bad JSON ({e}); falling back to stub.\n")
         return _stub_tag(question)
+
+
+def _strip_json_fence(text: str) -> str:
+    """剥掉 ```json ... ``` 围栏 (DeepSeek / 某些 model 习惯包 fence)。"""
+    t = text.strip()
+    if t.startswith("```"):
+        # remove first line (```json or ```) and trailing ```
+        lines = t.split("\n")
+        if len(lines) >= 2:
+            lines = lines[1:]
+            if lines and lines[-1].strip() == "```":
+                lines = lines[:-1]
+            t = "\n".join(lines).strip()
+    return t
 
 
 def main() -> None:

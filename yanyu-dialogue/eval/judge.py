@@ -210,17 +210,12 @@ def judge_session(session: dict[str, Any], mock: bool = False) -> dict[str, Any]
     if mock:
         return stub_result
 
-    try:
-        import anthropic  # type: ignore
-    except ImportError:
-        sys.stderr.write(
-            "[judge] anthropic package not installed; falling back to stub.\n"
-        )
-        return stub_result
+    from . import llm_backend  # type: ignore
 
-    api_key = os.environ.get("ANTHROPIC_API_KEY")
-    if not api_key:
-        sys.stderr.write("[judge] ANTHROPIC_API_KEY not set; falling back to stub.\n")
+    if not llm_backend.has_credential():
+        sys.stderr.write(
+            f"[judge] {llm_backend.backend_name()} credential not set; falling back to stub.\n"
+        )
         return stub_result
 
     # 真调：拼一份 readable 对话
@@ -229,14 +224,20 @@ def judge_session(session: dict[str, Any], mock: bool = False) -> dict[str, Any]
         f"{t.get('content','')}"
         for t in turns
     )
-    client = anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model="claude-haiku-4-5",
-        max_tokens=500,
-        system=JUDGE_SYSTEM,
-        messages=[{"role": "user", "content": convo}],
-    )
-    text = msg.content[0].text.strip()
+    try:
+        text = llm_backend.call_llm(
+            system=JUDGE_SYSTEM,
+            user=convo,
+            max_tokens=500,
+        )
+    except llm_backend.LLMError as e:
+        sys.stderr.write(f"[judge] {e}; falling back to stub.\n")
+        return stub_result
+
+    # 防御性 JSON 解析 (剥掉可能的 ```json fence)
+    from .bloom_tagger import _strip_json_fence  # type: ignore
+
+    text = _strip_json_fence(text)
     try:
         result = json.loads(text)
         # 合并 stub 的辅助字段供 dashboard 用

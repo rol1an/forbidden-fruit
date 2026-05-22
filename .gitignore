@@ -32,3 +32,13 @@ dashboard*.png
 # Lark CLI runtime artifacts
 .lark/
 *.session
+
+# Secrets — NEVER commit
+.env
+.env.*
+*.key
+*_api_key*
+secrets/
+
+# Eval agreement test outputs(可能含 LLM 真调结果, 不归档)
+eval/fixtures/bloom_agreement_result_*.json
