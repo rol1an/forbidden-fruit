@@ -107,9 +107,13 @@ def call_llm(
     """统一入口。返回 model 输出文本 (已 strip)。
 
     backend: 不传则用 YANYU_LLM_BACKEND env var (默认 anthropic)。
+    model: 不传则用 YANYU_LLM_MODEL env var, 再不传走 backend 默认。
+        用例: YANYU_LLM_MODEL=deepseek-reasoner 切到 V4-Flash thinking 模式。
     raises LLMError on any failure—— caller 应该 catch 并 fallback 到 stub。
     """
     chosen = (backend or DEFAULT_BACKEND).lower()
+    if model is None:
+        model = os.environ.get("YANYU_LLM_MODEL") or None
     if chosen == "anthropic":
         return _call_anthropic(system, user, max_tokens, model)
     if chosen == "deepseek":
