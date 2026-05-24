@@ -1,0 +1,103 @@
+{
+  "_meta": {
+    "version": "0.1.0-spike-D",
+    "name": "研磨结晶卡 · Bitable 表 schema",
+    "purpose": "决策 7 P2 形态 D 占位 schema, 不实施。供未来 6-1 后 Bitable 配额恢复时 lark-cli create 0 摩擦扩展。完整 spec 见 docs/CRYSTAL_CARD_SPIKE.md §2.2。",
+    "created_date": "2026-05-24",
+    "lark_backend": {
+      "profile": "new_tenant",
+      "base_token": "RZeFbv8rCaoDoosMvqmcvBupnXg",
+      "table_name_suggested": "研磨结晶卡",
+      "write_permission": "--as bot"
+    },
+    "local_backend": {
+      "path": ".yanyu_kb/crystal_cards/<card_id>.json",
+      "note": "LocalFileBackend 兜底, 配额异常期可用"
+    }
+  },
+
+  "fields": [
+    {
+      "name": "卡 ID",
+      "lark_type": "text",
+      "auto_increment_pattern": "crystal_001 / crystal_002 / ...",
+      "required": true,
+      "description": "全库唯一标识"
+    },
+    {
+      "name": "创建日期",
+      "lark_type": "date",
+      "required": true,
+      "description": "session 结束的时间戳"
+    },
+    {
+      "name": "主题",
+      "lark_type": "text",
+      "source": "session.topic",
+      "required": true,
+      "description": "复用 session.json 已有 topic 字段"
+    },
+    {
+      "name": "模式",
+      "lark_type": "select",
+      "options": ["grinding", "fusion"],
+      "required": true,
+      "description": "yanyu-dialogue 两种 mode"
+    },
+    {
+      "name": "用户原话",
+      "lark_type": "long_text",
+      "source": "E 阶段用户最后一句复述",
+      "required": true,
+      "description": "aha-moment 的核心内容, 7 天后 SRS 复盘的 ground truth"
+    },
+    {
+      "name": "被问住的问题",
+      "lark_type": "long_text",
+      "source": "agent D 阶段印证前抛的最后一个 probing 问题",
+      "required": true,
+      "description": "回看时帮用户重建当时的 frustration → aha 完整路径"
+    },
+    {
+      "name": "agent 引导金句",
+      "lark_type": "long_text",
+      "source": "session.json 里 probing 类 move 最长 / 用户最有反应的一句",
+      "required": false,
+      "description": "P3 可加 LLM 选出来; MVP 可空"
+    },
+    {
+      "name": "关联原文 obj_token",
+      "lark_type": "text",
+      "source": "session.article_obj_token (yanyu-import 写入时记录的飞书 wiki node)",
+      "required": false,
+      "description": "用户可点回去看原文 ; grinding mode 必填, fusion 可空"
+    },
+    {
+      "name": "aha 类型",
+      "lark_type": "select",
+      "options": ["印证型", "反例型", "跨界型"],
+      "required": true,
+      "description": "对应 spike doc §2.1 三类 aha-moment; MVP 阶段只填'印证型'"
+    },
+    {
+      "name": "SRS 下次复习",
+      "lark_type": "date",
+      "calc_rule": "创建日期 + 7 天 (Ebbinghaus 第一次复习窗)",
+      "required": false,
+      "description": "MVP 不 push, 字段留空; P3 SRS 推送时填"
+    }
+  ],
+
+  "_create_command_hint": {
+    "lark_cli_example": "lark-cli base +table-create --profile new_tenant --as bot --base-token RZeFbv8rCaoDoosMvqmcvBupnXg --name '研磨结晶卡' --fields-json @yanyu_core/crystal_card_schema.json",
+    "not_run_yet": true,
+    "earliest_run_date": "2026-06-01 (飞书 API 配额异常期 5-22~5-31 结束后)"
+  },
+
+  "_extension_notes": [
+    "形态 C 完整版接入时需要实现: aha_detector.py(类型 1 deterministic + 类型 2/3 LLM-judge), crystal_card_backend.py(写入抽象 + LarkBackend/LocalFileBackend 双实现), SKILL.md Step 5 加'E 阶段后自动写结晶卡'协议",
+    "类型 2 反例型检测: C 阶段 user turn 中出现 '但如果' / '反过来' / '边界情况' 等关键词 + LLM-judge 二次校验",
+    "类型 3 跨界型检测: fusion mode session 在 Step 4 收敛后, user turn 包含 A 领域 + B 领域两组关键词 + LLM-judge 校验",
+    "P3 工程债前置: aha-judge 必须 multi-run (≥3 次 majority vote) + JSON mode, 参考决策 7 §P1 闸门 5-23~5-24 跑分记录学到的教训"
+  ]
+}
