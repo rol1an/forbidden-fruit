@@ -421,7 +421,9 @@ reviewer 指出的"已引用但未实现"清单（除已经修的 4 个）：
 |---|---|---|
 | P0 全部（主线 8 项 + reviewer 3 项 + nice-to-have 4 项）| 1 天 | ✅ 5-22 当日完成 |
 | P1 Bloom 跨级跃升触发（依赖 `bloom_agreement.py` ≥85%）| 0.5 天 | 🔴 **5-24 真测推迟**（reasoner flaky, 见 §P1 闸门 5-23~5-24 跑分记录）|
-| P2 研磨结晶卡（Anki SRS 哲学路线, 长程沉淀感）| 3-4 天 | 🔵 5-30 朋友反馈后决定 |
+| P2-D 结晶卡 Bitable schema 占位（形态 D）| 15 min | ✅ 5-24 完成（`yanyu_core/crystal_card_schema.json`）|
+| P2-E PITCH §未来路线答辩备弹（形态 E）| 1 小时 | ✅ 5-24 完成（`PITCH.md` §未来路线）|
+| P2-C 结晶卡完整版（aha 三类检测 + Bitable + SRS push）| 3-4 天 | 🔵 5-30 朋友反馈后决定（spike doc 详见 `CRYSTAL_CARD_SPIKE.md`）|
 | P3 reasoner 工程债（JSON mode / fallback ID 日志 / N-shot majority vote）| 1-1.5 天 | 🔵 P1 重新评估前必修 |
 
 **最终回归**：`python3 -m eval.regression --mock --verbose` 7/7 PASS，telling_rate 全部 ≤ 0.2 守住红线。新增的 `ladder_normal_l1_l2` 和 `ladder_l3_overuse_scaffolding_fail` 两条 fixture 真触发了 `_count_ladder` + `overuse_warning` + `probing_depth × 0.7` 扣分逻辑。
