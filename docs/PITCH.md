@@ -147,6 +147,38 @@ PITCH.md
 
 ---
 
+## 未来路线（决策 7 P2 · 研磨结晶卡）
+
+> 不是 demo 视频内容, 是答辩时被问"接下来呢"的备弹。**已落地 schema 占位（[`../yanyu_core/crystal_card_schema.json`](../yanyu_core/crystal_card_schema.json)）**, 工程实施待 5-30 真朋友测试反馈验证后再投入。
+
+### 一句话路线
+
+砚友 v1 解决了"对话内"研磨闭环（决策 7 P0 hint laddering + 砚石痕迹 MVP）。v2 解决"**对话外**长程沉淀"——每次研磨 aha-moment 自动凝成一张「研磨结晶卡」写入飞书 Bitable, 7 天后 SRS 复盘 push 让你用一句话复述当时的悟道。
+
+### 为什么这是 Study Mode 物理上做不到的（强化出彩点 1 + 2）
+
+- Study Mode 阅后即焚, 没有可写入的"私有库" → **物理上**不能做"沉淀 → 7 天后回看"
+- Study Mode Memory 黑盒, 用户看不见也改不了 → 不能把 aha-moment 编辑成自己的语言再存
+- 砚友的结晶卡是 Bitable 一行, 你能打开看 / 编辑 / 跨卡片搜 / 7 天后被 push 重新对一遍
+
+### 学术锚点
+
+[Michael Nielsen, Augmenting Long-term Memory](https://augmentingcognition.com/ltm.html) ——「**进度感不必来自实时 UI feedback, 可以来自沉淀物的积累**」（Anki SRS 哲学）。配 Ebbinghaus forgetting curve 第一次复习窗 = 7 天后。
+
+### 答辩话术（如果被问"接下来做什么"）
+
+> "v1 是对话内研磨闭环, v2 走 Anki SRS 路线把每次悟道沉淀成可复盘卡片。Bitable schema 已建, 等真朋友测试反馈确认这是真痛点再投入。**这条路线 ChatGPT Study Mode 物理上做不到**——它没有可写入的私有库。"
+
+### 当前状态（诚实声明）
+
+- ✅ Schema 占位（[`yanyu_core/crystal_card_schema.json`](../yanyu_core/crystal_card_schema.json) 10 字段）
+- ✅ Spike 文档评估完成（[`CRYSTAL_CARD_SPIKE.md`](CRYSTAL_CARD_SPIKE.md) 5 种部署形态对比）
+- 🔵 完整实施 P2-C（aha 检测 + 写入 + SRS push, 3-4 天）等 5-30 朋友反馈后决定
+
+**不假装**：本节不是"已做的事", 是"未来工作"。答辩 / 物料引用时必须明确这个边界。
+
+---
+
 ## 答辩 Q&A 预演（提前准备 5 个最可能被问的问题）
 
 ### Q1 · "ChatGPT Study Mode 也能做这个，为什么用砚友？"
