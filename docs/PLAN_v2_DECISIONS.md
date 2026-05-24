@@ -411,7 +411,7 @@ reviewer 指出的"已引用但未实现"清单（除已经修的 4 个）：
 ### Nice-to-have 四项（commit 085790c / b58463f / c777c4f）
 
 - N1：`l2_missing_default > 0` → telling_rate 软扣 0.05 / each（agent 盲猜反直觉锚点 ≈ telling 行为）
-- N2：bloom_003 标注 remember → understand（"作者用 ColBERT 还是另一种"有比对成分）
+- N2：bloom_003 标注 remember → understand（"作者用 ColBERT 还是另一种"有比对成分）—— **⚠ 5-24 已 evidence-based 回滚（5 次真测都投 remember），详见下方 §P1 闸门 5-23~5-24 跑分记录**
 - N3：`_check_inkstone_repetition` 检测同 callout 出现 ≥3 次 = prompt 失败信号
 - N4：SKILL.md §3.y 升"我现在到第几了"高频失败处理
 
@@ -420,8 +420,9 @@ reviewer 指出的"已引用但未实现"清单（除已经修的 4 个）：
 | 阶段 | 工时 | 状态 |
 |---|---|---|
 | P0 全部（主线 8 项 + reviewer 3 项 + nice-to-have 4 项）| 1 天 | ✅ 5-22 当日完成 |
-| P1 Bloom 跨级跃升触发（依赖 `bloom_agreement.py` ≥85%）| 0.5 天 | 🔵 5-30 之后 |
+| P1 Bloom 跨级跃升触发（依赖 `bloom_agreement.py` ≥85%）| 0.5 天 | 🔴 **5-24 真测推迟**（reasoner flaky, 见 §P1 闸门 5-23~5-24 跑分记录）|
 | P2 研磨结晶卡（Anki SRS 哲学路线, 长程沉淀感）| 3-4 天 | 🔵 5-30 朋友反馈后决定 |
+| P3 reasoner 工程债（JSON mode / fallback ID 日志 / N-shot majority vote）| 1-1.5 天 | 🔵 P1 重新评估前必修 |
 
 **最终回归**：`python3 -m eval.regression --mock --verbose` 7/7 PASS，telling_rate 全部 ≤ 0.2 守住红线。新增的 `ladder_normal_l1_l2` 和 `ladder_l3_overuse_scaffolding_fail` 两条 fixture 真触发了 `_count_ladder` + `overuse_warning` + `probing_depth × 0.7` 扣分逻辑。
 
@@ -450,3 +451,45 @@ reviewer 指出的"已引用但未实现"清单（除已经修的 4 个）：
 - 挂载点：[`../yanyu-dialogue/SKILL.md`](../yanyu-dialogue/SKILL.md) §3.x §3.y
 - 评估契约：[`../yanyu-dialogue/references/teacher-move-classifier.md`](../yanyu-dialogue/references/teacher-move-classifier.md) §Ladder level 副标签
 - P1 闸门：[`../yanyu-dialogue/eval/bloom_agreement.py`](../yanyu-dialogue/eval/bloom_agreement.py)
+
+### P1 闸门 5-23 ~ 5-24 跑分记录
+
+> 用户用 DeepSeek API key 实测 bloom_agreement (基线评估 P1 是否解锁), 跑 5 次得出 reasoner flaky 结论, P1 推迟。
+
+**触发**：用户反驳"GPT-4 baseline 0.72 是 outdated benchmark, 应该跟 DeepSeek-V4 比"。调研确认我们用的 `deepseek-chat` 是 V4-Flash Non-Think 模式 (2026-04-24 发布, 284B MoE / 13B 激活 / 1M context), 同款模型有 `deepseek-reasoner` Think 模式可用。
+
+**调研发现**:
+
+- DeepSeek 官方推荐 Non-Think 用于 classification 任务（不是缺陷, 是正确配置）
+- arXiv:2602.17229 linear probing 95% 不可直接对比（internal representation 探针 ≠ prompted 标注）
+- 学术界没有 V4-Flash 在 Bloom 6 层的权威 baseline
+- 但 thinking 模式在"多步比较"任务上业界经验是 +5~15%
+
+**5 次跑分数据** (20 条 fixture, temp=0.0):
+
+| Run | 日期 | Model | Agreement | Pass? | bad JSON |
+|---|---|---|---|---|---|
+| 1 | 5-23 | deepseek-chat (Non-Think) | 16/20 = 80% | ✗ | 0 |
+| 2 | 5-24 | deepseek-reasoner (Think) | 15/20 = 75% | ✗ | 1 |
+| 3 | 5-24 | deepseek-reasoner | 18/20 = 90% | ✓ | 0 |
+| 4 | 5-24 | deepseek-reasoner | 15/20 = 75% | ✗ | 1 |
+| 5 | 5-24 | deepseek-reasoner | 19/20 = 95% | ✓ | 0 |
+
+**Reasoner 4 次跑分统计**: mean 83.75%, std ≈ 8.93, 85% 闸门通过率 50%, bad JSON fallback 出现率 60%。
+
+**Evidence-based fixture 修订**：
+
+- bloom_003（"作者用 ColBERT 还是另一种"）: 5 次跑分（1 次 non-think + 4 次 reasoner）**全部投 remember**, 证明 N2 commit b58463f 把 remember 改 understand 是盲从 reviewer, **5-24 已回滚**
+
+**结论**：reasoner 在 Bloom 6 层 prompted classification 上本质 flaky——同 prompt 同 fixture temp=0.0 单次跑结果在 [75%, 95%] 区间游走 ±10pp。chain-of-thought 内部 stochastic + bad JSON 60% 出现率（reasoning 偶尔污染 content 字段, fallback 到 stub 进一步放大 variance）。
+
+**决策（A 路径）**：
+
+1. **P1 推迟**——flaky 比 fail 更糟, 上线后用户某天看到准的 callout 某天看到错的 = 信任崩盘比"完全不显示"更彻底
+2. **MVP 砚石痕迹永久维持** 仅 stage transition + every-5-rounds 触发, 不消费 bloom_tagger 输出
+3. **P3 工程债** 在 P1 重新评估之前必修: ① JSON mode / structured output 灭 bad JSON ② agreement 脚本加 fallback ID 日志 ③ N-shot majority vote (同问题跑 3 次取多数), 约 1-1.5 天工时
+
+**副产物**:
+
+- `yanyu-dialogue/eval/llm_backend.py` 加 `YANYU_LLM_MODEL` env var 支持 (此次调研保留, 未来 P1 重新评估 / P3 工程债排期都会复用)
+- 工程方法论沉淀：**单次跑分不能作为 deterministic gate**, 必须跑 ≥3 次看 mean ± std 才能下结论。本次差点用 1 次 85% PASS 解锁 P1 = 严重过早承诺

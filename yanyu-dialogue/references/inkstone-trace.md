@@ -94,6 +94,32 @@ P1 callout 示例（agreement test ≥85% 解锁后）：
 
 agreement < 85% 时砚石痕迹**仅允许** stage transition + every-5-rounds 触发，不允许消费 bloom_tagger 输出。
 
+### 5-23 ~ 5-24 真测发现：reasoner flaky, P1 推迟
+
+跑 DeepSeek-V4-Flash 两种模式实测 20 条 fixture, 5 次独立跑分:
+
+| Run | Model | Agreement | bad JSON fallback |
+|---|---|---|---|
+| 1 (5-23) | deepseek-chat (Non-Think) | 16/20 = 80% | 0 |
+| 2 (5-24 N2 回滚后) | deepseek-reasoner (Think) | 15/20 = 75% | 1 |
+| 3 (5-24) | deepseek-reasoner | 18/20 = 90% | 0 |
+| 4 (5-24) | deepseek-reasoner | 15/20 = 75% | 1 |
+| 5 (5-24) | deepseek-reasoner | 19/20 = 95% | 0 |
+
+**Reasoner 4 次跑分统计**: mean 83.75%, std ≈ 8.93, 85% 闸门通过率 50%。
+
+**结论**：reasoner 在 Bloom 6 层 prompted classification 上本质 flaky——同 prompt 同 fixture temp=0.0 单次跑结果在 [75%, 95%] 区间游走 ±10pp。chain-of-thought 内部 stochastic + bad JSON 60% 出现率（reasoning 偶尔污染 content 字段, fallback 到 stub 进一步放大 variance）。
+
+**决策**: **P1 推迟**。flaky 比 fail 更糟——上线后用户某天看到准的 callout 某天看到错的, 信任崩盘比"完全不显示"更彻底。MVP 砚石痕迹**永久维持仅 stage transition + every-5-rounds 触发**, 直到 5-30 朋友反馈给出新评估 evidence 或工程债（JSON mode / structured output / N-shot majority vote）落地。
+
+**P3 工程债**（不阻塞 5-30）:
+
+- reasoner bad JSON 60% 出现率: 用 JSON mode / structured output 让 LLM 强制输出严格 JSON
+- agreement 脚本没记 fallback 命中哪条 fixture: 加 fallback ID 日志
+- 想稳定 ≥85% 的话: N-shot majority vote（同问题跑 3 次取多数）+ JSON mode
+
+P1 真要解锁的话, 上述三项都得做, 至少 1-1.5 天。当前优先级低于 5-30 朋友测试。
+
 ## 失败处理
 
 | 症状 | 应对 |
