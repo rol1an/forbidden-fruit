@@ -1,0 +1,43 @@
+[project]
+name = "yanyu"
+version = "0.2.0"
+description = "砚友 · InkMate — Anthropic Claude Skills 包：微信文章入库（yanyu-import）+ 苏格拉底研磨/跨界研创对话引擎（yanyu-dialogue），共享 yanyu_core 存储抽象。"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { file = "LICENSE" }
+authors = [{ name = "Luojian Peng", email = "rol1an@users.noreply.github.com" }]
+keywords = ["anthropic-skills", "socratic", "rag", "feishu", "lark"]
+
+# 运行期核心（yanyu_core + skill scripts）只依赖标准库 + 外部二进制 lark-cli。
+# 因此 base 安装无第三方 Python 依赖。
+dependencies = []
+
+[project.optional-dependencies]
+# eval/ 框架的 LLM-judge 与 dashboard 才需要这些；按需安装：pip install -e ".[eval]"
+eval = [
+    "anthropic>=0.40",   # eval/llm_backend.py · anthropic backend
+    "requests>=2.31",    # eval/llm_backend.py · deepseek (OpenAI-compatible) backend
+    "matplotlib>=3.7",   # eval/dashboard.py · Bloom dashboard PNG
+]
+dev = [
+    "ruff>=0.6",
+]
+
+[project.urls]
+Homepage = "https://github.com/rol1an/forbidden-fruit"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+# 仓库里唯一的可安装 Python 包是 yanyu_core；
+# 各 Skill 的 scripts/ 与 eval/ 以「在该目录内 python3 -m ...」方式运行，不打包。
+[tool.hatch.build.targets.wheel]
+packages = ["yanyu_core"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]

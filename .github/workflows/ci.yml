@@ -1,0 +1,39 @@
+name: CI
+
+# 把 CLAUDE.md 的两条铁律钉成自动化闸门：
+#   1. yanyu_core 单测必须绿（unittest，stdlib，无需第三方依赖）
+#   2. 每次改 SKILL.md / references / eval 都跑 dialogue 回归（--mock，stub judge，不烧 token）
+# 两个 job 都只用标准库，无需 pip install，秒级完成。
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: yanyu_core unit tests
+        run: python -m unittest discover -s yanyu_core/tests -p 'test_*.py' -v
+      - name: yanyu-dialogue prompt-eval regression (mock)
+        working-directory: yanyu-dialogue
+        run: python -m eval.regression --mock
+
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - run: pipx install ruff
+      - name: ruff check
+        run: ruff check .
