@@ -154,7 +154,7 @@ forbiddenfruit/
 4. **fusion Step 5 仅复述 + 踢球**（不主动产出方案——决策 2 砍掉的核心）
 5. **fusion 强制跨界算法保留**（这是砚友独占 moat，对应 PITCH.md 出彩点 3）
 6. **不在物料里说**：反 AI 摘要 / 我们比 ChatGPT 强 / 革命性/颠覆性 / "苏格拉底 AI 第一个吃螃蟹"（地雷清单见 PITCH.md）
-7. **每改 SKILL.md / references/**：跑 `cd yanyu-dialogue && python3 -m eval.regression` 验回归（telling_rate ≤ 0.2）
+7. **每改 eval 框架 / fixtures**：跑 `cd yanyu-dialogue && python3 -m eval.regression --mock` 确认 eval 框架自洽（telling_rate ≤ 0.2）。⚠️ 此回归**不加载 SKILL.md 提示词**——改提示词对它零影响（它从 fixture 的 expected_moves 反向拼虚拟 session 打分，见 regression.py 顶部「边界」说明）。提示词层面的质量验证目前只能靠 5-30 真人测试或真 dialogue agent runner（待建）
 
 ---
 

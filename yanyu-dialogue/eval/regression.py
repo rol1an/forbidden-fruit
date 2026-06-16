@@ -1,18 +1,30 @@
-"""砚友 · Prompt 回归测试框架
+"""砚友 · eval 框架回归测试
 
-输入：eval/fixtures/regression_set.json（5-10 条固定测试用例）
+⚠️ 边界（务必读）：本测试**不调用真 agent，也不加载 SKILL.md 提示词**。
+它从每条 fixture 的 `expected_moves` 反向拼出一份"理想 agent"虚拟 session
+（见 `_mock_session`），再喂给 stub judge 打分。因此：
+
+  ✅ 能捕获：eval 框架代码本身的退化（stub judge 评分逻辑 / ladder 计数 /
+     砚石痕迹重复检测 / aha 关键词检查），以及 fixture 自洽性。
+  ❌ 不能捕获：提示词（SKILL.md / references）层面的退化——改提示词对这里的
+     分数**零影响**。真正的 prompt 回归需要接一个真 dialogue agent runner
+     （见 `_mock_session` 的 TODO）。
+
+输入：eval/fixtures/regression_set.json（固定测试用例）
 每条：{
     "name": "...",
     "initial_user_input": "...",
     "topic": "...",
-    "expected_moves": [...],          # 顺序敏感的 agent move 期望
-    "expected_aha_keywords": [...]    # E 阶段用户回复 / agent 印证 中应出现的关键词
+    "expected_moves": [...],          # 用于拼虚拟 session 的 agent move 序列
+    "expected_aha_keywords": [...],   # E 阶段用户回复里应出现的关键词
+    "expect_overuse": false           # 可选：是否预期触发 L3 ladder 滥用告警
 }
 
-行为：用 mock 跑（不真调 Anthropic），生成虚拟 session → 跑 judge → 报告 pass/fail。
-关注两个回归信号：
-    1. telling rate 是否超阈（默认 0.2）
-    2. expected_moves 序列是否对得上（前缀匹配）
+行为：mock 跑（不真调 LLM）→ 生成虚拟 session → 跑 stub judge → 报告 pass/fail。
+每条 case 的 pass 取决于三个信号同时满足：
+    1. telling_rate 是否 ≤ 阈值（默认 0.2）
+    2. expected_aha_keywords 是否都出现在 session 文本里
+    3. ladder 滥用告警 (overuse_warning) 是否与 expect_overuse 一致
 
 CLI：
     python3 -m eval.regression
