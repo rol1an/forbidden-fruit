@@ -131,6 +131,7 @@ class LocalBackendProfileTest(unittest.TestCase):
             domain_familiarity_tags=["RAG", "Agent"],
             session_count=3,
             last_session_at="2026/05/21",
+            display_name="罗健",
         )
         self.backend.upsert_profile(prof)
         back = self.backend.read_profile("ou_xx")
@@ -140,6 +141,7 @@ class LocalBackendProfileTest(unittest.TestCase):
         self.assertEqual(back.style_response, "prefers_challenge")
         self.assertEqual(back.session_count, 3)
         self.assertEqual(set(back.domain_familiarity_tags), {"RAG", "Agent"})
+        self.assertEqual(back.display_name, "罗健")
 
         # 第二次 upsert 应覆盖（不累加）
         prof.session_count = 5

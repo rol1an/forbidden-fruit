@@ -284,6 +284,7 @@ class LocalFileBackend(Backend):
             domain_familiarity_tags=list(data.get("domain_familiarity_tags") or []),
             session_count=int(data.get("session_count") or 0),
             last_session_at=data.get("last_session_at"),
+            display_name=data.get("display_name"),
             is_new=False,
         )
 
@@ -299,5 +300,6 @@ class LocalFileBackend(Backend):
             "domain_familiarity_tags": profile.domain_familiarity_tags,
             "session_count": profile.session_count,
             "last_session_at": profile.last_session_at,
+            "display_name": profile.display_name,
         }
         path.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

@@ -323,6 +323,7 @@ class LarkBackend(Backend):
             domain_familiarity_tags=list(fields.get("domain_familiarity_tags") or []),
             session_count=int(fields.get("session_count") or 0),
             last_session_at=fields.get("last_session_at"),
+            display_name=fields.get("display_name"),
             is_new=False,
             record_id=record_id,
         )
@@ -341,6 +342,8 @@ class LarkBackend(Backend):
             "session_count": profile.session_count,
             "last_session_at": profile.last_session_at or "",
         }
+        if profile.display_name:
+            fields["display_name"] = profile.display_name
         cmd = [
             "lark-cli", "base", "+record-upsert",
             "--profile", self.profile, "--as", "bot",

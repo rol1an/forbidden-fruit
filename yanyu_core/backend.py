@@ -48,6 +48,7 @@ class Profile:
     domain_familiarity_tags: list[str] = field(default_factory=list)
     session_count: int = 0
     last_session_at: str | None = None
+    display_name: str | None = None
     is_new: bool = False
     record_id: str | None = None
 
