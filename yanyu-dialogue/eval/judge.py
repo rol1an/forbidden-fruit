@@ -161,7 +161,9 @@ def _stub_judge(
     # 用户最后一回合长度作为"复述完整度"的弱信号
     last_user_turns = [t for t in turns if t.get("role") == "user"]
     if last_user_turns:
-        last_len = len(last_user_turns[-1].get("content", ""))
+        # content 可能显式为 JSON null（.get 的默认值只在 key 缺失时生效，
+        # 值为 None 时仍返回 None）——用 or "" 兜住，避免 len(None) 崩。
+        last_len = len(last_user_turns[-1].get("content") or "")
         if has_d and has_e and last_len >= 40:
             aha = 0.75
 
@@ -240,13 +242,17 @@ def judge_session(session: dict[str, Any], mock: bool = False) -> dict[str, Any]
     text = _strip_json_fence(text)
     try:
         result = json.loads(text)
+        # well-formed JSON 也可能是 list / 标量——若不挡住，下面的
+        # result["_move_counts"] = ... 会抛 TypeError 绕过 fallback。
+        if not isinstance(result, dict):
+            raise ValueError(f"expected JSON object, got {type(result).__name__}")
         # 合并 stub 的辅助字段供 dashboard 用
         result["_move_counts"] = stub_result["_move_counts"]
         result["_stage_coverage"] = stub_result["_stage_coverage"]
         result["_ladder_stats"] = stub_result["_ladder_stats"]
         result["_inkstone_stats"] = stub_result["_inkstone_stats"]
         return result
-    except json.JSONDecodeError as e:
+    except (json.JSONDecodeError, ValueError) as e:
         sys.stderr.write(f"[judge] LLM bad JSON ({e}); falling back to stub.\n")
         return stub_result
 

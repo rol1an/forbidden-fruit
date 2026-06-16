@@ -44,13 +44,21 @@ def _call_anthropic(
         raise LLMError("ANTHROPIC_API_KEY not set")
 
     client = anthropic.Anthropic(api_key=api_key)
-    msg = client.messages.create(
-        model=model or ANTHROPIC_MODEL_DEFAULT,
-        max_tokens=max_tokens,
-        system=system,
-        messages=[{"role": "user", "content": user}],
-    )
-    return msg.content[0].text.strip()
+    try:
+        msg = client.messages.create(
+            model=model or ANTHROPIC_MODEL_DEFAULT,
+            max_tokens=max_tokens,
+            system=system,
+            messages=[{"role": "user", "content": user}],
+        )
+    except Exception as e:  # APIError / 网络 / 鉴权等——归一成 LLMError 供 caller fallback
+        raise LLMError(f"anthropic call failed: {e}") from e
+    # 取第一个 text 块：不能假设 content[0] 一定是 text（thinking / tool 块可能在前）
+    for block in msg.content or []:
+        text = getattr(block, "text", None)
+        if text:
+            return text.strip()
+    raise LLMError("anthropic returned no text block")
 
 
 def _call_deepseek(

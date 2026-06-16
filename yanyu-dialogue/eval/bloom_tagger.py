@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import re
 import sys
 from typing import Any
 
@@ -123,6 +124,10 @@ def tag_question(question: str, mock: bool = False) -> dict[str, Any]:
     text = _strip_json_fence(text)
     try:
         result = json.loads(text)
+        # well-formed JSON 也可能是 list / 标量（model 没按指令吐 object）——
+        # 不挡住会在 result.get() 抛 AttributeError，绕过下面的 fallback。
+        if not isinstance(result, dict):
+            raise ValueError(f"expected JSON object, got {type(result).__name__}")
         if result.get("level") not in BLOOM_LEVELS:
             raise ValueError(f"bad level: {result.get('level')}")
         return _attach_chinese_label(result)
@@ -132,17 +137,17 @@ def tag_question(question: str, mock: bool = False) -> dict[str, Any]:
 
 
 def _strip_json_fence(text: str) -> str:
-    """剥掉 ```json ... ``` 围栏 (DeepSeek / 某些 model 习惯包 fence)。"""
+    """剥掉 ```json ... ``` 围栏 (DeepSeek / 某些 model 习惯包 fence)。
+
+    同时兼容单行围栏（```json {...} ``` 整段在一行）——旧实现按换行切，
+    单行时 len(lines)<2 直接放过，导致 json.loads 撞反引号失败。
+    """
     t = text.strip()
-    if t.startswith("```"):
-        # remove first line (```json or ```) and trailing ```
-        lines = t.split("\n")
-        if len(lines) >= 2:
-            lines = lines[1:]
-            if lines and lines[-1].strip() == "```":
-                lines = lines[:-1]
-            t = "\n".join(lines).strip()
-    return t
+    if not t.startswith("```"):
+        return t
+    t = re.sub(r"^```[A-Za-z0-9_-]*\s*", "", t)  # 开头 ```lang（同行或独立一行）
+    t = re.sub(r"\s*```$", "", t)                # 结尾 ```
+    return t.strip()
 
 
 def main() -> None:

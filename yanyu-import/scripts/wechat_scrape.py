@@ -28,6 +28,9 @@ UA = (
 
 def curl_fetch(url: str) -> str:
     """模拟浏览器 UA 抓取，绕过微信轻量反爬。"""
+    # 只放行 http(s)：curl 也支持 file:// / scp:// 等，避免本地文件被当 URL 读出。
+    if not re.match(r"^https?://", url, re.IGNORECASE):
+        raise RuntimeError(f"只接受 http(s) URL，拒绝: {url!r}")
     with tempfile.NamedTemporaryFile(suffix=".html", delete=False) as f:
         out_path = f.name
     try:
@@ -39,7 +42,7 @@ def curl_fetch(url: str) -> str:
                     "-H", f"User-Agent: {UA}",
                     "-H", "Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
                     "-H", "Accept-Language: zh-CN,zh;q=0.9,en;q=0.8",
-                    url,
+                    "--", url,  # 用 -- 终止选项解析，防 URL 以 - 开头被当 flag 注入
                 ],
                 check=True, capture_output=True, timeout=30,
             )
@@ -91,7 +94,15 @@ def extract_body(html_text: str) -> str:
         r'<div[^>]*id=["\']js_content["\'][^>]*>(.*?)</div>\s*(?:<script|<!--end)',
         html_text, re.DOTALL,
     )
-    return m.group(1) if m else html_text  # 兜底返全文，让上层报警
+    if not m:
+        # 兜底返全文——但这次真的报警（旧版注释说"让上层报警"却从不报）。
+        # 常见诱因：页面是反爬验证页、或正文容器结构变化。
+        sys.stderr.write(
+            "[wechat_scrape] WARN: 未定位到 id=js_content 正文容器，"
+            "退回整页 HTML——产物可能含导航/脚本噪音，请人工核对。\n"
+        )
+        return html_text
+    return m.group(1)
 
 
 def _parse_color(color: str) -> tuple[int, int, int] | None:
